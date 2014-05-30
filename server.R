@@ -11,19 +11,33 @@ library(shiny)
 
 shinyServer(function(input, output) {
   
+  
+  
+  
+  output$table <- renderUI({
+    inFile <- input$First
+    Duomenys <- read.csv(inFile$datapath, stringsAsFactors=FALSE)
+    if(input$tableOpts=="comp"){
+      output$ex1 <- renderDataTable(Duomenys, options = list(iDisplayLength = 10))
+      dataTableOutput("ex1")
+    }else{
+      output$ex2 <- renderTable(Duomenys)
+      tableOutput("ex2")
+    }})
+  
+  
   output$distPlot <- renderPlot({
     
     inFile <- input$First
     
-    if (is.null(inFile)){df <- data.frame()
+    if(is.null(inFile)){df <- data.frame()
                          print(ggplot(df)+ xlim(-5, 5) + ylim(-5, 5)+
                                  annotate("text", label = "Feed me some data", x = 0, y = 0, size = 8, colour = "red")
                          )
                         
     }else{
       
-      Duomenys <- read.csv(inFile$datapath, stringsAsFactors=FALSE)
-      DataSlidersFor <- c("CountryName","ProductName")
+  DataSlidersFor <- c("CountryName","ProductName")
       DSli <- colnames(Duomenys)[colnames(Duomenys)%in%DataSlidersFor]
       textas <- ""
       for(i in DSli){
@@ -59,14 +73,18 @@ shinyServer(function(input, output) {
     DSli <- colnames(Duomenys)[colnames(Duomenys)%in%DataSlidersFor]
     
     
-    textas <- "fluidRow(fileInput('Second', 'Choose Second CSV File', accept=c('text/csv', 'text/comma-separated-values,text/plain', '.csv'))"
+    textas <- "fluidRow(theme='bootstrap.css'"
     for(i in DSli){
       prods <- unique(Duomenys[[i]])
       prods <- gsub("\\W"," ",prods)
-      txt <-paste("selectInput('",i,"','",i,":',c(",paste("'",prods,"'",sep="",collapse=","),"))", sep="")
+      txt=switch(input$typ,  
+                 sing = paste("selectInput('",i,"','",i,":',c(",paste("'",prods,"'",sep="",collapse=","),"))", sep=""),
+                 mult=paste("selectInput('",i,"','",i,":',multiple = TRUE,c(",paste("'",prods,"'",sep="",collapse=","),"))", sep=""),
+                 regn= paste("selectInput('",i,"','",i,":',c(",paste("'",prods,"'",sep="",collapse=","),"))", sep=""))     
+      
       textas <- paste(textas,txt,sep=",")
       }
-    textas <- paste(textas,")")
+    textas <- paste(textas,",fileInput('Second', 'Choose Second CSV File', accept=c('text/csv', 'text/comma-separated-values,text/plain', '.csv')))")
     eval(parse(text=textas))
     
     #Duomenys <- read.csv("new.csv", stringsAsFactors=FALSE)
