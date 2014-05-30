@@ -18,25 +18,28 @@ library(RColorBrewer)
 
 
 
-shinyUI(fluidPage(
+shinyUI(
+  navbarPage(theme = "bootstrap2.css",
   
   # Application title
-  headerPanel("Euromonitor C&C v0.01"),
-  
+  title="Euromonitor C&C v0.01",
+  tabPanel("Graphs",
   # Sidebar with a slider input for number of observations
   fluidRow(
 
-    column(3, wellPanel(
+     wellPanel(
       # This outputs the dynamic UI component
       fileInput('First', 'Choose First CSV File',
                 accept=c('text/csv', 'text/comma-separated-values,text/plain', '.csv')),
       uiOutput("ui")
-    )),
+    ),
     
     column(9,
            plotOutput("distPlot")
     )
-  )
+  )),
+  tabPanel("Data Table",fileInput('dsa', 'Choose dsaFirst CSV File',
+                                  accept=c('text/csv', 'text/comma-separated-values,text/plain', '.csv')))
  
 
   
