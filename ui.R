@@ -15,6 +15,9 @@ library(ggplot2)
 library(TTR)
 library(gridExtra)
 library(RColorBrewer)
+library(xlsx)
+library(quantreg)
+library(gtools)
 
 
 
@@ -35,6 +38,10 @@ shinyUI(
                    "Region" = "regn")),  
     fileInput('First', 'Choose First CSV File',
                 accept=c('text/csv', 'text/comma-separated-values,text/plain', '.csv')),
+    radioButtons("downloadP", "Download:",
+                 c("Single" = "sing",
+                   "Multiple" = "mult")),
+    downloadButton("downloadPDF", "Download the PDF Graph"),
       uiOutput("ui")
     )),
     
@@ -42,12 +49,36 @@ shinyUI(
            plotOutput("distPlot",width = "100%", height = "600px")
     ))
   ),
+  
+  
   tabPanel("Data Table",
            radioButtons("tableOpts", "Table type:",
                                      c("Simple" = "simp",
                                        "Complex" = "comp")),
-           uiOutput("table"))
- 
+           uiOutput("table")),
+  
+################################################################## 
+#         Tab For Comparison of two Data sets 
+##################################################################  
+  
+  tabPanel("Old-New",
+           fluidRow(column(3, wellPanel(
+           fileInput('Older', 'Choose Old CSV File',
+                     accept=c('text/csv', 'text/comma-separated-values,text/plain', '.csv')),
+           fileInput('Newer', 'Choose New CSV File',
+                     accept=c('text/csv', 'text/comma-separated-values,text/plain', '.csv')),
+           uiOutput("check"),
+           radioButtons("downloadCheck", "Download:",
+                        c("Single" = "sing",
+                          "Multiple" = "mult")),
+           downloadButton("downloadPDFCheck", "Download PDF Graph"),
+           downloadButton("downloadPDFXlsx", "Download Full Summary"))),
+           column(9,
+                  plotOutput("OldNewPlot",width = "100%", height = "600px"),
+                  plotOutput("OldNewPlot2",width = "100%", height = "250px")
+                  
+           ))
+           )
 
   
   # Show a plot of the generated distribution
