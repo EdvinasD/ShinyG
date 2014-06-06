@@ -18,7 +18,7 @@ library(RColorBrewer)
 library(xlsx)
 library(quantreg)
 library(gtools)
-
+library(XLConnect)
 
 
 shinyUI(
@@ -67,6 +67,10 @@ shinyUI(
                      accept=c('text/csv', 'text/comma-separated-values,text/plain', '.csv')),
            fileInput('Newer', 'Choose New CSV File',
                      accept=c('text/csv', 'text/comma-separated-values,text/plain', '.csv')),
+           sliderInput("percent", "Percent %:",
+                       min = 1, max = 20, value = 5, step = 0.5),
+           sliderInput("range", "Years:",
+                       1977,  2030, value = c(1977,2030)),
            uiOutput("check"),
            radioButtons("downloadCheck", "Download:",
                         c("Single" = "sing",
