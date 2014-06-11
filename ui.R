@@ -19,7 +19,7 @@ library(xlsx)
 library(quantreg)
 library(gtools)
 library(XLConnect)
-
+load("EMI base.Rdata")
 
 shinyUI(
   navbarPage(theme = "bootstrap2.css",fluid=FALSE,
@@ -32,17 +32,18 @@ shinyUI(
   
   fluidRow(column(3, wellPanel(
       # This outputs the dynamic UI component
+  
+    uiOutput("ui"),
     radioButtons("typ", "Graph type:",
                  c("Single" = "sing",
                    "Multiple" = "mult",
                    "Region" = "regn")),  
-    fileInput('First', 'Choose First CSV File',
+    fileInput('First', 'Choose CSV File',
                 accept=c('text/csv', 'text/comma-separated-values,text/plain', '.csv')),
     radioButtons("downloadP", "Download:",
                  c("Single" = "sing",
                    "Multiple" = "mult")),
-    downloadButton("downloadPDF", "Download the PDF Graph"),
-      uiOutput("ui")
+    downloadButton("downloadPDF", "Download the PDF Graph")
     )),
     
   column(9,
@@ -82,7 +83,17 @@ shinyUI(
                   plotOutput("OldNewPlot2",width = "100%", height = "250px")
                   
            ))
-           )
+           ),
+tabPanel("Interpolation",
+         fluidRow(column(3, wellPanel(
+           fileInput('First', 'Choose CSV File',
+                     accept=c('text/csv', 'text/comma-separated-values,text/plain', '.csv')))
+                  
+           ))
+)
+
+
+
 
   
   # Show a plot of the generated distribution

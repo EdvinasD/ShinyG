@@ -34,14 +34,15 @@ shinyServer(function(input, output) {
     
     if(is.null(inFile)){df <- data.frame()
                         print(ggplot(df)+ xlim(-5, 5) + ylim(-5, 5)+theme_bw()+xlab('')+ylab("")+
-                                annotate("text", label = "", x = 0, y = 0, size = 8, colour = "Black")+
+                                annotate("text", label = "No Data", x = 0, y = 0, size = 8, colour = "Black")+
                                 theme(axis.ticks = element_blank(), axis.text = element_blank())
                         )
                         
     }else{
-      
+      Duomenys <- read.csv(inFile$datapath, stringsAsFactors=FALSE)
       DataSlidersFor <- c("CountryName","ProductName")
       DSli <- colnames(Duomenys)[colnames(Duomenys)%in%DataSlidersFor]
+      if(input$typ=="sing"){
       textas <- ""
       for(i in DSli){
         prods <- unique(Duomenys[[i]])
@@ -59,9 +60,53 @@ shinyServer(function(input, output) {
       toplot <- toplot[,!is.na(toplot[])]
       dd<- data.frame(x=as.numeric(gsub("Y","",colnames(toplot))),
                       y = as.numeric(toplot) )
+      if(nrow(dd)==0){
+        df <- data.frame()
+        print(ggplot(df)+ xlim(-5, 5) + ylim(-5, 5)+theme_bw()+xlab('')+ylab("")+
+                annotate("text", label = "No data for this choice", x = 0, y = 0, size = 8, colour = "Black")+
+                theme(axis.ticks = element_blank(), axis.text = element_blank())
+        )  
       
-      g <- ggplot(data=dd,aes(x=x,y=y))+geom_line()
+        }else{
+      g <- ggplot(data=dd,aes(x=x,y=y))+geom_line(colour="#FAA537")+theme_bw()+xlab('Year')+ylab("")
       print(g)
+      
+      }
+      
+      }
+      if(input$typ=="mult"){
+        textas <- ""
+        for(i in DSli){
+          prods <- unique(Duomenys[[i]])
+          prods <- gsub("\\W"," ",prods)
+          txt <-paste(i," %in% input$",i, sep="")
+          if(textas==""){
+            textas <- paste(textas,txt,sep="DataPlot=subset(Duomenys,")
+          }else{
+            textas <- paste(textas,txt,sep="&") 
+          }
+        }
+        textas <- paste(textas,")")
+        eval(parse(text=textas))
+        toplot <- DataPlot[,grep(paste0("Y|",paste(DSli,collapse="|")),colnames(DataPlot))]
+        dd <- melt(toplot,id.vars=DSli)
+        dd$variable <- as.numeric(gsub("Y","",dd$variable))
+        dd <- subset(dd,!is.na(value))
+        if(nrow(dd)==0){
+          df <- data.frame()
+          print(ggplot(df)+ xlim(-5, 5) + ylim(-5, 5)+theme_bw()+xlab('')+ylab("")+
+                  annotate("text", label = "No data for this choice", x = 0, y = 0, size = 8, colour = "Black")+
+                  theme(axis.ticks = element_blank(), axis.text = element_blank())
+          )  
+          
+        }else{
+          g <- ggplot(data=dd,aes(x=variable,y=value,colour=,))+geom_line()+theme_bw()+xlab('Year')+ylab("")
+          print(g)
+        }
+      }
+      
+      
+      
       
       
       
@@ -79,19 +124,24 @@ shinyServer(function(input, output) {
     DataSlidersFor <- c("CountryName","ProductName")
     DSli <- colnames(Duomenys)[colnames(Duomenys)%in%DataSlidersFor]
     
-    
-    textas <- "fluidRow(theme='bootstrap.css'"
+    if(input$typ=="regn"){
+      textas <- paste("fluidRow(selectInput('region','Region:',c(",paste("'",unique(regions$Region),"'",sep="",collapse=","),"))")
+      DSli <- DSli[DSli!="CountryName"]
+    }else{
+      textas <- "fluidRow(theme='bootstrap2.css'"
+    }
     for(i in DSli){
       prods <- unique(Duomenys[[i]])
       prods <- gsub("\\W"," ",prods)
       txt=switch(input$typ,  
                  sing = paste("selectInput('",i,"','",i,":',c(",paste("'",prods,"'",sep="",collapse=","),"))", sep=""),
-                 mult=paste("selectInput('",i,"','",i,":',multiple = TRUE,c(",paste("'",prods,"'",sep="",collapse=","),"))", sep=""),
-                 regn= paste("selectInput('",i,"','",i,":',c(",paste("'",prods,"'",sep="",collapse=","),"))", sep=""))     
+                 mult = paste("selectInput('",i,"','",i,":',multiple = TRUE,c(",paste("'",prods,"'",sep="",collapse=","),"))", sep=""),
+                 regn = paste("selectInput('",i,"','",i,":',c(",paste("'",prods,"'",sep="",collapse=","),"))", sep=""))     
       
       textas <- paste(textas,txt,sep=",")
     }
-    textas <- paste(textas,",fileInput('Second', 'Choose Second CSV File', accept=c('text/csv', 'text/comma-separated-values,text/plain', '.csv')))")
+    
+    textas <- paste(textas,")")
     eval(parse(text=textas))
     
     #Duomenys <- read.csv("new.csv", stringsAsFactors=FALSE)
