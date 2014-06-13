@@ -43,40 +43,104 @@ shinyServer(function(input, output) {
       DataSlidersFor <- c("CountryName","ProductName")
       DSli <- colnames(Duomenys)[colnames(Duomenys)%in%DataSlidersFor]
       if(input$typ=="sing"){
-      textas <- ""
-      for(i in DSli){
-        prods <- unique(Duomenys[[i]])
-        prods <- gsub("\\W"," ",prods)
-        txt <-paste(i," == input$",i, sep="")
-        if(textas==""){
-          textas <- paste(textas,txt,sep="DataPlot=subset(Duomenys,")
-        }else{
-          textas <- paste(textas,txt,sep="&") 
-        }
-      }
-      textas <- paste(textas,")")
-      eval(parse(text=textas))
-      toplot <- DataPlot[,grep("Y",colnames(DataPlot))]
-      toplot <- toplot[,!is.na(toplot[])]
-      dd<- data.frame(x=as.numeric(gsub("Y","",colnames(toplot))),
-                      y = as.numeric(toplot) )
-      if(nrow(dd)==0){
-        df <- data.frame()
-        print(ggplot(df)+ xlim(-5, 5) + ylim(-5, 5)+theme_bw()+xlab('')+ylab("")+
-                annotate("text", label = "No data for this choice", x = 0, y = 0, size = 8, colour = "Black")+
-                theme(axis.ticks = element_blank(), axis.text = element_blank())
-        )  
-      
-        }else{
-      g <- ggplot(data=dd,aes(x=x,y=y))+geom_line(colour="#FAA537")+theme_bw()+xlab('Year')+ylab("")
-      print(g)
-      
-      }
-      
-      }
-      if(input$typ=="mult"){
         textas <- ""
         for(i in DSli){
+          prods <- unique(Duomenys[[i]])
+          prods <- gsub("\\W"," ",prods)
+          txt <-paste(i," == input$",i, sep="")
+          if(textas==""){
+            textas <- paste(textas,txt,sep="DataPlot=subset(Duomenys,")
+          }else{
+            textas <- paste(textas,txt,sep="&") 
+          }
+        }
+        textas <- paste(textas,")")
+        eval(parse(text=textas))
+        toplot <- DataPlot[,grep("Y",colnames(DataPlot))]
+        toplot <- toplot[,!is.na(toplot[])]
+        dd<- data.frame(x=as.numeric(gsub("Y","",colnames(toplot))),
+                        y = as.numeric(toplot))
+        if(nrow(dd)==0){
+          df <- data.frame()
+          print(ggplot(df)+ xlim(-5, 5) + ylim(-5, 5)+theme_bw()+xlab('')+ylab("")+
+                  annotate("text", label = "No data for this choice", x = 0, y = 0, size = 8, colour = "Black")+
+                  theme(axis.ticks = element_blank(), axis.text = element_blank())
+          )  
+          
+        }else{
+          g <- ggplot(data=dd,aes(x=x,y=y))+geom_line(colour="#FAA537")+theme_bw()+xlab('Year')+ylab("")
+          print(g)
+          
+        }
+        
+      }
+      if(input$typ=="mult"){
+        #Checking if there are productName, CountryName or ec..
+        full.date <- TRUE
+        for(i in DSli){
+          if(eval(parse(text=paste0("is.null(input$",i,")"))))
+            full.date <-FALSE
+        }
+        
+        if(full.date){
+          
+          textas <- ""
+          for(i in DSli){
+            prods <- unique(Duomenys[[i]])
+            prods <- gsub("\\W"," ",prods)
+            txt <-paste(i," %in% input$",i, sep="")
+            if(textas==""){
+              textas <- paste(textas,txt,sep="DataPlot=subset(Duomenys,")
+            }else{
+              textas <- paste(textas,txt,sep="&") 
+            }
+          }
+          textas <- paste(textas,")")
+          eval(parse(text=textas))
+          toplot <- DataPlot[,grep(paste0("Y|",paste(DSli,collapse="|")),colnames(DataPlot))]
+          dd <- melt(toplot,id.vars=DSli)
+          dd$variable <- as.numeric(gsub("Y","",dd$variable))
+          dd <- subset(dd,!is.na(value))
+          if(nrow(dd)==0){
+            df <- data.frame()
+            print(ggplot(df)+ xlim(-5, 5) + ylim(-5, 5)+theme_bw()+xlab('')+ylab("")+
+                    annotate("text", label = "No data for this choice", x = 0, y = 0, size = 8, colour = "Black")+
+                    theme(axis.ticks = element_blank(), axis.text = element_blank())
+            )  
+            
+          }else{
+            colo <- NULL
+            for(i in 1:(length(dd)-2)){
+              if(length(unique(dd[,i]))>1){
+                colo <- names(dd[i])
+              }else{
+                if(is.null(colo))
+                  colo <- names(dd[1])
+              }
+            }
+            eval(parse(text=paste("g <- ggplot(data=dd,aes(x=variable,y=value,colour=",colo,"))+geom_line()+theme_bw()+xlab('Year')+ylab('')")))
+            print(g)
+          }
+        }else{
+          df <- data.frame()
+          print(ggplot(df)+ xlim(-5, 5) + ylim(-5, 5)+theme_bw()+xlab('')+ylab("")+
+                  annotate("text", label = "Choose criteria", x = 0, y = 0, size = 8, colour = "Black")+
+                  theme(axis.ticks = element_blank(), axis.text = element_blank())
+          )  
+          
+          
+          
+        }
+        
+        
+        
+        
+      }
+      if(input$typ=="regn"){
+        
+        textas <- ""
+        
+        for(i in DSli[DSli!="CountryName"]){
           prods <- unique(Duomenys[[i]])
           prods <- gsub("\\W"," ",prods)
           txt <-paste(i," %in% input$",i, sep="")
@@ -92,6 +156,7 @@ shinyServer(function(input, output) {
         dd <- melt(toplot,id.vars=DSli)
         dd$variable <- as.numeric(gsub("Y","",dd$variable))
         dd <- subset(dd,!is.na(value))
+        dd <- subset(dd,CountryName%in%c(as.character(subset(regions,Region==input$region)$Country)))
         if(nrow(dd)==0){
           df <- data.frame()
           print(ggplot(df)+ xlim(-5, 5) + ylim(-5, 5)+theme_bw()+xlab('')+ylab("")+
@@ -100,7 +165,8 @@ shinyServer(function(input, output) {
           )  
           
         }else{
-          g <- ggplot(data=dd,aes(x=variable,y=value,colour=,))+geom_line()+theme_bw()+xlab('Year')+ylab("")
+          colo <- "CountryName"
+          eval(parse(text=paste("g <- ggplot(data=dd,aes(x=variable,y=value,colour=",colo,"))+geom_line()+theme_bw()+xlab('Year')+ylab('')")))
           print(g)
         }
       }
@@ -109,11 +175,10 @@ shinyServer(function(input, output) {
       
       
       
-      
     }
-    # generate and plot an rnorm distribution with the requested
-    # number of observations
   })
+  # generate and plot an rnorm distribution with the requested
+  # number of observations
   
   
   output$ui <- renderUI({
@@ -143,11 +208,10 @@ shinyServer(function(input, output) {
     
     textas <- paste(textas,")")
     eval(parse(text=textas))
-    
-    #Duomenys <- read.csv("new.csv", stringsAsFactors=FALSE)
-    # Depending on input$input_type, we'll generate a different
-    # UI component and send it to the client.
-  }) 
+  })
+  #Duomenys <- read.csv("new.csv", stringsAsFactors=FALSE)
+  # Depending on input$input_type, we'll generate a different
+  # UI component and send it to the client.
   
   
   output$downloadPDF <- downloadHandler(filename = paste("graphs-",Sys.time(),".pdf",sep=""),
@@ -163,14 +227,29 @@ shinyServer(function(input, output) {
   createPdf <- function() {
     temp <- tempfile(fileext=".pdf")
     pdf(temp)
-    dd<- data.frame(x=1:10,
-                    y = 1:10 )
-    g <- ggplot(data=dd,aes(x=x,y=y))+geom_line()
-    print(g)
-    if(input$downloadP=="mult")
-      print(g)
-    dev.off()
+    if(input$typ=="sing"){
+      if(input$downloadP=="sing"){
+        
+      }else{
+        
+      }
+      
+    }
+    if(input$typ=="regn"){
+      if(input$downloadP=="sing"){
+        
+      }else{
+        
+      }
+    }
+    if(input$typ=="mult"){
+      
+    }
     
+    
+    
+    
+    dev.off()
     return(temp)
     
   }
@@ -491,6 +570,8 @@ shinyServer(function(input, output) {
     # generate and plot an rnorm distribution with the requested
     # number of observations
   })
+  
+  
   
   createPdfCheck <- function() {
     temp <- tempfile(fileext=".pdf")
