@@ -12,8 +12,6 @@ library(shiny)
 shinyServer(function(input, output) {
   
   
-  
-  
   output$table <- renderUI({
     inFile <- input$First
     if (is.null(inFile))
@@ -224,6 +222,7 @@ shinyServer(function(input, output) {
                                           
                                         })
   
+  
   createPdf <- function() {
     temp <- tempfile(fileext=".pdf")
     pdf(temp)
@@ -253,7 +252,6 @@ shinyServer(function(input, output) {
     return(temp)
     
   }
-  
   
   
   output$check <- renderUI({
@@ -297,7 +295,6 @@ shinyServer(function(input, output) {
                                                writeBin(bytes, FILE)
                                                
                                              })
-  
   
   
   output$downloadPDFXlsx <- downloadHandler(
@@ -393,7 +390,6 @@ shinyServer(function(input, output) {
       file.rename(fname,file)
       
     })
-  
   
   
   output$OldNewPlot <- renderPlot({
@@ -572,7 +568,6 @@ shinyServer(function(input, output) {
   })
   
   
-  
   createPdfCheck <- function() {
     temp <- tempfile(fileext=".pdf")
     inOld <- input$Older
@@ -738,6 +733,52 @@ shinyServer(function(input, output) {
     dev.off()
     return(temp)
   }  
+  
+  
+  output$uiinter <- renderUI({
+    inFile <- input$Inter
+    if (is.null(inFile))
+      return()
+    Duomenys <- read.csv(inFile$datapath, stringsAsFactors=FALSE)
+    DataSlidersFor <- c("CountryName","ProductName")
+    DSli <- colnames(Duomenys)[colnames(Duomenys)%in%DataSlidersFor]
+    
+    
+      textas <- "fluidRow(theme='bootstrap2.css'"
+    
+    for(i in DSli){
+      prods <- unique(Duomenys[[i]])
+      prods <- gsub("\\W"," ",prods)
+      txt=paste("selectInput('",i,"','",i,":',c(",paste("'",prods,"'",sep="",collapse=","),"))", sep="")
+      textas <- paste(textas,txt,sep=",")
+    }
+    textas <- paste(textas,")")
+    eval(parse(text=textas))
+  })
+  
+  
+  output$fillmani <- renderUI({
+    if(input$InterpolateType=="fill"){
+      fluidRow(selectInput("splinemethod","Spline method:",c("fmm", "periodic", "natural", "monoH.FC", "hyman")),
+               sliderInput("macoefn0", "n-start:",
+                  min = 1, max = 20, value = 5, step = 1),
+              sliderInput("macoefk0", "k-start:",
+                            min =0, max = 1, value = 0.6, step = 0.05),
+              sliderInput("macoefn1", "n-end:",
+                          min = 1, max = 20, value = 5, step = 1),
+              sliderInput("macoefk1", "k-end:",
+                          min =0, max = 1, value = 0.6, step = 0.05))
+    }else{
+      fluidRow(sliderInput("manilevel", "Level:",
+                           min = 1, max = 20, value = 5, step = 1),
+               sliderInput("manipress", "Press:",
+                           min =0, max = 1, value = 0.6, step = 0.05))
+      
+   }
+    
+  })
+  
+  
   
 })
 
