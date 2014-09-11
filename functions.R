@@ -1,165 +1,161 @@
-createPdfCheck <- function() {
-  temp <- tempfile(fileext=".pdf")
-  inOld <- input$Older
-  inNew <- input$Newer
+
+n <- NA
+k <- 0.8
+step <- 4
+epsilon <- 0.1
+method <- "monoH.FC"
+MASplineVector <- function(x, n , k, step, epsilon, method = "monoH.FC", 
+                           n0 = n, n1 = n, k0 = k, k1 = k) {                                
+  # x vektoriaus "pratempimas" pirmyn ir atgal taikant MA ("vidus" turi buti be "skyliu")
+  # Args:
+  #   x: vektorius, kurio pradzioje ar/ir pabaigoje esantys NA keiciami 
+  #      naujomis reiksmemis taikant MA (paskutine reikme + pokyciu vidurkis * koeficientas)
+  #   n: paskutiniu pokyciu, kuriems imamas vidurkis, skaicius (n1 - pirmyn, n0 - atgal)
+  #      jei nenurodyta, turimu stebejimu skaicius N dalinamas pusiau ir apvalinamas
+  #   k: koeficientas, is kurio dauginams pokyciu vidurkis, 
+  #      pries pridedant ji prie paskutines zinomos reiksmes (k1 - pirmyn, k0 - atgal)
+  #   step: kelintame zingsnyje jau turi buti palaipsniui pasiektas MA koeficientas, NA tas pats kas 0
+  #   epsilon: NA - tiesiog spline&MA, ne NA - per koki epsilon padidintu originaliu reziu negali perzengti MA rezultatas
+  #   method : metodas sline'ams paduodamas funkcijai splinefun
+  # Returns:
+  #   vectorius x, su pratemptomis taikant MA reiksmemis pradzioje ir pabaigoje vektoriaus
+  #   jei x nera daugiau zinomu reiksmiu nei n, grazina nepakeista x
   
-    old <- read.csv(inOld$datapath, stringsAsFactors=FALSE)
-    new <- read.csv(inNew$datapath, stringsAsFactors=FALSE)
+  # require(TTR)
+  
+  ### spline 
+  # atmetami galuose NA
+  xtest=-1
+  xf=x
+  
+  while(any(xtest<0,na.rm=T)){
+    x=xf
+    #   print(epsilon)
+    x.length <- length(x)
+    x.notna <- which(!is.na(x))
+    x.first <- min(x.notna)
+    x.last <- max(x.notna)
+    x <- x[c(x.first : x.last)]  
+    time <- c(x.first : x.last)
+    # uzpildomos trukstamos reiksmes splainu pagalba   
+    s <- splinefun(time, x, method = method)
+    x <- s(time)
+    x <- c(rep(NA, x.first-1), x, rep(NA, x.length-x.last))
     
-    proc=0.05
-    bbbb <- grep("Y",intersect(names(new),names(old))) #[,!sapply(new,function(x) all(is.na(x)))]))
-    bounds=bbbb[c(1,length(bbbb))]
-    miy=1990
-    may=2015
     
-    new[bounds[1]:bounds[2]]=apply(new[bounds[1]:bounds[2]],2,as.numeric)
-    old[bounds[1]:bounds[2]]=apply(old[bounds[1]:bounds[2]],2,as.numeric)
-    d=rbind.fill(cbind(Version="new",new),cbind(Version="old",old))
+    ### set k0, n0, k1, n1
+    sk.pok <- max(which(!is.na(x)))-min(which(!is.na(x)))
+    n.def <- sk.pok   # ceiling(sk.pok/2) 
+    k.def <- 1
+    # jei koef NA, nustatomi pagal nutylejima
+    n1 <- ifelse(is.na(n1), n.def, n1)
+    n0 <- ifelse(is.na(n0), n.def, n0)
+    k1 <- ifelse(is.na(k1), k.def, k1)
+    k0 <- ifelse(is.na(k0), k.def, k0)
+    # jei 'n' reiksmes virsija turimu pokyciu skaiciu, imamas max
+    n1 <- ifelse(n1 > sk.pok, sk.pok, n1)
+    n0 <- ifelse(n0 > sk.pok, sk.pok, n0)
     
-    if(input$downloadCheck=="sing"){
-      DataSlidersFor <- c("CountryName","ProductName")
-      DSlOld <- colnames(old)[colnames(old)%in%DataSlidersFor]
-      DSlNew <- colnames(new)[colnames(new)%in%DataSlidersFor]
-      DSli <- intersect(DSlOld,DSlNew)
+    x.notna.spl <- which(!is.na(x))
+    
+    ### MA
+    if (length(x.notna.spl) > n1) {
+      j <- x.last # pozicija su paskutiniu zinomu
       
-      textas <- ""
-      for(i in DSli){
-        prods <- unique(d[[i]])
-        prods <- gsub("\\W"," ",prods)
-        txt <-paste(i," == input$",i,"C", sep="")
-        if(textas==""){
-          textas <- paste(textas,txt,sep="d=subset(d,")
-        }else{
-          textas <- paste(textas,txt,sep="&") 
+      # MA pratempimas pirmyn
+      while (j < x.length) {
+        x_aug <- (c(x, 0) - c(0, x))[c(1:length(x))] # augimai pameciui (pirmyn)
+        y <- x_aug[!(is.na(x_aug))] 
+        # koregavimas koeficiento del palaipsnio perejimo
+        if (is.na(step) | step == 0 | step == 1){
+          k11 <- k1
+        } else {
+          step.no <- j - x.last + 1
+          if (step.no >= step) {
+            k11 <- k1
+          } else {
+            k11 <- k1 + (1 - k1) * (step - step.no) / step
+          }
+        }
+        # MA vienu zingsniu i prieki
+        x[j+1] <- ifelse(n1==1, x[j]+y[1]*k11, x[j]+SMA(y, n1)[length(y)]*k11)  
+        j <- j+1
+      }
+    }    
+    
+    if (length(x.notna.spl) > n0) { 
+      j <- x.first # pozicija su pirmu zinomu
+      
+      # MA pratempimas atgal
+      while (j > 1) {
+        x_aug <- (c(x, 0) - c(0, x))[c(1:length(x))] 
+        x_maz <- c(-x_aug[2:length(x_aug)], NA) # mazejimai pameciui (atgal)
+        y <- x_maz[!(is.na(x_maz))] 
+        # koregavimas koeficiento del palaipsnio perejimo
+        if (is.na(step) | step == 0 | step == 1){
+          k00 <- k0
+        } else {
+          step.no <- x.first - j + 1
+          if (step.no >= step) {
+            k00 <- k0
+          } else {
+            k00 <- k0 + (1 - k0) * (step - step.no) / step
+          }
+        }
+        x[j-1] <- ifelse(n0==1, x[j]+y[1]*k00, x[j]+SMA(y, n0)[n0]*k00) # MA vienu zingsniu atgal
+        j <- j-1
+      }
+    }
+    
+    
+    ### restriction: new values in range 
+    ### [min.orig - epsilon * origgap, max.orig + epsilon * origgap]
+    if (!is.na(epsilon)){
+      origlo.bound <- min(x[x.notna])
+      origup.bound <- max(x[x.notna])
+      origgap <- origup.bound - origlo.bound
+      
+      lo.bound <- origlo.bound - epsilon * origgap
+      up.bound <- origup.bound + epsilon * origgap
+      
+      xna <- setdiff(c(1:length(x)), x.notna)
+      xna.forward <- xna[xna > x.last]
+      xna.backward <- xna[xna < x.first]
+      # if out of bounds MA forward
+      if (any(x[xna.forward] > up.bound)){
+        x[xna.forward] <- NA
+        x[length(x)] <- up.bound
+      } else {
+        if (any(x[xna.forward] < lo.bound)){
+          x[xna.forward] <- NA
+          x[length(x)] <- lo.bound
         }
       }
-      textas <- paste(textas,")")
-      cat(textas)
-      cat(input$CountryNameC)
-      cat(input$ProductNameC)
-      eval(parse(text=textas))
-    }
-    
-    
-    bounds2=bounds+1
-    
-    difmat=ddply(d,~ProductName+CountryName,function(x){
-      
-      x<<-x
-      cat(paste(x$CountryName[1],x$ProductName[1],sep=" >>> "),"\n")
-      nx=x[x$Version=="new",]
-      ox=x[x$Version=="old",]
-      
-      dx=nx
-      dx$Version="diff ratio"
-      dx[bounds2[1]:bounds2[2]]=NA  
-      
-      dx[bounds2[1]:bounds2[2]]=nx[bounds2[1]:bounds2[2]]/ox[bounds2[1]:bounds2[2]]
-      
-      return(dx)
-    })
-    
-    
-    
-    
-    logmat=ddply(difmat,~ProductName+CountryName,function(x){
-      
-      x<<-x
-      cat(paste(x$CountryName[1],x$ProductName[1],sep=" >>> "),"\n")
-      out=c()
-      if(any(x[bounds2[1]:bounds2[2]]> (1 + proc) | 
-               x[bounds2[1]:bounds2[2]]< (1 - proc),na.rm=T)){
-        nm=which.max(abs(range(x[bounds2[1]:bounds2[2]],na.rm=T)-1))
-        out=c(1,range(x[bounds2[1]:bounds2[2]],na.rm=T)[nm])
-      }
-      return(out)
-      
-    })
-    
-    dmat=cbind(d,Change=NA,MaxChangeRatio=NA)
-    
-    if(ncol(logmat)!=0){
-      
-      um=unique(logmat[,c("ProductName","CountryName")])
-      
-      for(i in 1:dim(um)[1]){
-        
-        cat(paste(um[i,"CountryName"],um[i,"ProductName"],sep=" >>> "),"\n")
-        dmat[dmat$ProductName==um[i,"ProductName"] & dmat$CountryName==um[i,"CountryName"],"Change"]=1
-        dmat[dmat$ProductName==um[i,"ProductName"] & dmat$CountryName==um[i,"CountryName"],"MaxChangeRatio"]=
-          logmat[logmat$ProductName==um[i,"ProductName"] & logmat$CountryName==um[i,"CountryName"],"V2"]
-        
+      # if out of bounds MA backward
+      if (any(x[xna.backward] > up.bound)){
+        x[xna.backward] <- NA
+        x[1] <- up.bound
+      } else {
+        if (any(x[xna.backward] < lo.bound)){
+          x[xna.backward] <- NA
+          x[1] <- lo.bound
+        }
       }
       
+      # spline if needed
+      if (any(is.na(x))){
+        time <- c(1:length(x))
+        # uzpildomos trukstamos reiksmes splainu pagalba   
+        s <- splinefun(time, x, method = method)
+        x <- s(time)
+      }
     }
-    dmat=arrange(dmat,ProductName,CountryName)
     
-    # grpahs ------------------------------------------------------------------
-    cola=c("#FAA537","#5F88A1")
-    names(cola)=c("new","old")
+    epsilon=epsilon*0.7
+    if(epsilon<0.01) break  
     
-    if(input$downloadCheck=="sing"){
-      dimensions=1
-    }else{dimensions = dim(um)[1]}
-    
-    
-    pdf(temp,width=14,height=10)
-    for(i in 1:dimensions){
-      
-      miny=miy
-      maxy=may
-      
-      cat(paste(um[i,"CountryName"],um[i,"ProductName"],sep=" >>> "),"\n")
-      x=dmat[dmat$ProductName==um[i,"ProductName"] & dmat$CountryName==um[i,"CountryName"],]
-      names(x)[bounds2[1]:bounds2[2]]=substr(names(x)[bounds2[1]:bounds2[2]],2,5)
-      unit=x$Unit[1]
-      
-      lx=difmat[difmat$ProductName==um[i,"ProductName"] & difmat$CountryName==um[i,"CountryName"],]
-      lx=lx[bounds2[1]:bounds2[2]]
-      reds1=lx[which(lx>(1+proc) | lx<(1-proc))]
-      
-      if(range(as.numeric(substr(names(reds1),2,5)))[1]<miny)miny=range(as.numeric(substr(names(reds1),2,5)))[1]
-      if(range(as.numeric(substr(names(reds1),2,5)))[2]>maxy)maxy=range(as.numeric(substr(names(reds1),2,5)))[2]
-      
-      
-      x=cbind(x[,c("Version","ProductName","CountryName")],x[bounds2[1]:bounds2[2]])
-      x=x[,c(1:3,which(names(x)==as.character(miny)):which(names(x)==as.character(maxy)))]
-      
-      mx=melt(x,id.vars=c("Version","ProductName","CountryName"))
-      mx$variable=as.numeric(as.character(mx$variable))
-      
-      dx=mx[mx$Version=="new",]
-      dx$value=mx[mx$Version=="new","value"]/mx[mx$Version=="old","value"]
-      
-      ddx=dx[!is.na(dx$value),]
-      reds=ddx$variable[which(ddx$value>(1+proc) | ddx$value<(1-proc))]
-      
-      
-      
-      g2=ggplot(dx,aes(x=variable,y=value))+
-        annotate("rect",ymax=Inf,ymin=-Inf,
-                 xmin=reds-0.5,xmax=reds+0.5,fill="blue",alpha=0.05,colour="white")+
-        geom_vline(xintercept=c(reds+0.5,reds-0.5),colour="blue",alpha=0.05)+
-        theme_bw()+xlab("Year")+ylab("Change Ratio")+
-        geom_hline(yintercept=c(1),colour="black",linetype=2)+
-        geom_hline(yintercept=c(1+proc,1-proc),colour="blue",linetype=4)+
-        geom_line(colour="firebrick3")+geom_point(colour="firebrick3")+
-        geom_point(colour="firebrick3")
-      
-      
-      
-      g1=ggplot(mx,aes(x=variable,y=value,group=Version,colour=Version))+
-        
-        annotate("rect",ymax=Inf,ymin=-Inf,
-                 xmin=reds-0.5,xmax=reds+0.5,fill="blue",alpha=0.05,colour="white")+
-        geom_vline(xintercept=c(reds+0.5,reds-0.5),colour="blue",alpha=0.05)+
-        geom_line()+geom_point()+
-        theme_bw()+xlab("Year")+ylab(unit)+scale_colour_manual(values=cola)+
-        ggtitle(bquote(atop(.(as.character(mx$CountryName[1])), atop(italic(.(as.character(mx$ProductName[1])), "")))))+
-        theme(legend.position="top")
-      
-      print(grid.arrange(g1,g2,heights=c(4,2)))
-    }
-    dev.off()
-  return(temp)
+    xtest=x
+  }
+  
+  return(x) # grazinamas papildytas x vektorius (arba pirminis, jei n per didelis) 
 }

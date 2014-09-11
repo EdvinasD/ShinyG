@@ -20,6 +20,7 @@ library(quantreg)
 library(gtools)
 library(XLConnect)
 load("EMI base.Rdata")
+source("functions.R")
 
 shinyUI(
   navbarPage(theme = "bootstrap2.css",fluid=FALSE,
@@ -94,8 +95,17 @@ tabPanel("Interpolation",
                           "Manipulate" = "mani")),
            uiOutput("fillmani"),
            actionButton("interpolatesave", label = "Save"),
-           actionButton("interpolaterefrash", label = "Refresh"))
-           ))
+           actionButton("interpolaterefrash", label = "Refresh"))),
+           column(9,fluidRow(plotOutput("InterpolationPlot",width = "100%", height = "600px"),
+                             gsub("label class=\"radio\"", "label class=\"radio inline\"",
+                                  radioButtons("didsast", "Modification:",
+                                               c("No" = "no",
+                                                 "Log" = "log",
+                                                 "Percentage Change" = "perc"))),
+                             uiOutput("uiinterProduct")
+           
+                  )))
+                    
 )
 
 

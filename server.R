@@ -5,12 +5,9 @@
 # http://www.rstudio.com/shiny/
 #
 
-library(shiny)
-
-
 
 shinyServer(function(input, output) {
-  
+ 
   
   output$table <- renderUI({
     inFile <- input$First
@@ -55,10 +52,9 @@ shinyServer(function(input, output) {
         textas <- paste(textas,")")
         eval(parse(text=textas))
         toplot <- DataPlot[,grep("Y",colnames(DataPlot))]
-        toplot <- toplot[,!is.na(toplot[])]
-        dd<- data.frame(x=as.numeric(gsub("Y","",colnames(toplot))),
-                        y = as.numeric(toplot))
-        if(nrow(dd)==0){
+        
+       
+        if(nrow(toplot[,!is.na(toplot[])])==0){
           df <- data.frame()
           print(ggplot(df)+ xlim(-5, 5) + ylim(-5, 5)+theme_bw()+xlab('')+ylab("")+
                   annotate("text", label = "No data for this choice", x = 0, y = 0, size = 8, colour = "Black")+
@@ -66,6 +62,8 @@ shinyServer(function(input, output) {
           )  
           
         }else{
+          dd<- data.frame(x=as.numeric(gsub("Y","",colnames(toplot))),
+                          y = as.numeric(toplot))
           g <- ggplot(data=dd,aes(x=x,y=y))+geom_line(colour="#FAA537")+theme_bw()+xlab('Year')+ylab("")
           print(g)
           
@@ -98,8 +96,8 @@ shinyServer(function(input, output) {
           toplot <- DataPlot[,grep(paste0("Y|",paste(DSli,collapse="|")),colnames(DataPlot))]
           dd <- melt(toplot,id.vars=DSli)
           dd$variable <- as.numeric(gsub("Y","",dd$variable))
-          dd <- subset(dd,!is.na(value))
-          if(nrow(dd)==0){
+          
+          if(nrow(subset(dd,!is.na(value)))==0){
             df <- data.frame()
             print(ggplot(df)+ xlim(-5, 5) + ylim(-5, 5)+theme_bw()+xlab('')+ylab("")+
                     annotate("text", label = "No data for this choice", x = 0, y = 0, size = 8, colour = "Black")+
@@ -153,9 +151,9 @@ shinyServer(function(input, output) {
         toplot <- DataPlot[,grep(paste0("Y|",paste(DSli,collapse="|")),colnames(DataPlot))]
         dd <- melt(toplot,id.vars=DSli)
         dd$variable <- as.numeric(gsub("Y","",dd$variable))
-        dd <- subset(dd,!is.na(value))
+        
         dd <- subset(dd,CountryName%in%c(as.character(subset(regions,Region==input$region)$Country)))
-        if(nrow(dd)==0){
+        if(nrow(subset(dd,!is.na(value)))==0){
           df <- data.frame()
           print(ggplot(df)+ xlim(-5, 5) + ylim(-5, 5)+theme_bw()+xlab('')+ylab("")+
                   annotate("text", label = "No data for this choice", x = 0, y = 0, size = 8, colour = "Black")+
@@ -733,18 +731,32 @@ shinyServer(function(input, output) {
     dev.off()
     return(temp)
   }  
+
   
-  
-  output$uiinter <- renderUI({
-    inFile <- input$Inter
+  output$uiinterProduct <- renderUI({
+    inFile <- intervalues$InterpolationD
     if (is.null(inFile))
       return()
-    Duomenys <- read.csv(inFile$datapath, stringsAsFactors=FALSE)
-    DataSlidersFor <- c("CountryName","ProductName")
+    Duomenys <- inFile
+    ChoseFrom <- c("ProductID","ProductName")
+    DSli <- colnames(Duomenys)[colnames(Duomenys)%in%ChoseFrom]
+    textas <- paste( "radioButtons('product', 'Product:', c(",
+                     paste(paste0("'",DSli,"'"), paste0("'",DSli,"'"), sep=" = ",collapse=" ,"),
+                     "))")
+    gsub("label class=\"radio\"", "label class=\"radio inline\"",
+    eval(parse(text=textas)))
+  })
+  
+  output$uiinter <- renderUI({
+    inFile <- intervalues$InterpolationD
+    if (is.null(inFile))
+      return()
+    Duomenys <- inFile
+    DataSlidersFor <- c("CountryName",input$product)
     DSli <- colnames(Duomenys)[colnames(Duomenys)%in%DataSlidersFor]
     
     
-      textas <- "fluidRow(theme='bootstrap2.css'"
+    textas <- "fluidRow(theme='bootstrap2.css'"
     
     for(i in DSli){
       prods <- unique(Duomenys[[i]])
@@ -756,29 +768,232 @@ shinyServer(function(input, output) {
     eval(parse(text=textas))
   })
   
+  # Interpolation Code ------------------------------
+  
   
   output$fillmani <- renderUI({
+    input$interpolaterefrash
     if(input$InterpolateType=="fill"){
-      fluidRow(selectInput("splinemethod","Spline method:",c("fmm", "periodic", "natural", "monoH.FC", "hyman")),
+      fluidRow(checkboxGroupInput("logtrans","",c(log="log"),
+                                  selected = NULL),
+               selectInput("splinemethod","Spline method:",c("monoH.FC", "fmm", "periodic", "natural", "hyman")),
                sliderInput("macoefn0", "n-start:",
-                  min = 1, max = 20, value = 5, step = 1),
-              sliderInput("macoefk0", "k-start:",
-                            min =0, max = 1, value = 0.6, step = 0.05),
-              sliderInput("macoefn1", "n-end:",
-                          min = 1, max = 20, value = 5, step = 1),
-              sliderInput("macoefk1", "k-end:",
-                          min =0, max = 1, value = 0.6, step = 0.05))
+                           min = 1, max = 20, value = 5, step = 1),
+               sliderInput("macoefk0", "k-start:",
+                           min =0, max = 1, value = 0.6, step = 0.05),
+               sliderInput("macoefn1", "n-end:",
+                           min = 1, max = 20, value = 5, step = 1),
+               sliderInput("macoefk1", "k-end:",
+                           min =0, max = 1, value = 0.6, step = 0.05))
     }else{
       fluidRow(sliderInput("manilevel", "Level:",
                            min = 1, max = 20, value = 5, step = 1),
                sliderInput("manipress", "Press:",
                            min =0, max = 1, value = 0.6, step = 0.05))
       
-   }
+    }
     
   })
   
   
+  intervalues <- reactiveValues()
+  SaveButton <- reactiveValues()
+  
+  
+  observe({
+    if(is.null(input$Inter)){
+      intervalues$InterpolationD <- NULL
+        return(NULL)
+        }else{
+          
+          intervalues$InterpolationD <- 
+          read.csv(input$Inter$datapath, stringsAsFactors=FALSE)
+          intervalues$InterpolationDtemp <- 
+            read.csv(input$Inter$datapath, stringsAsFactors=FALSE)
+          return(input$Inter)
+        }})
+  
+  InterpolationRow <- reactive({
+    
+    inFile <- intervalues$InterpolationD
+    if (is.null(inFile))
+      return()
+    Duomenys <- inFile
+    DataSlidersFor <- c("CountryName",input$product)
+    DSli <- colnames(Duomenys)[colnames(Duomenys)%in%DataSlidersFor]
+    textas <- ""
+    for(i in DSli){
+        txt <-paste(i," == input$",i, sep="")
+      if(textas==""){
+        textas <- paste(textas,txt,sep="DataFill = subset(Duomenys,")
+      }else{
+        textas <- paste(textas,txt,sep=" & ") 
+      }
+    }
+    eval(parse(text=paste0(textas,")")))
+    return(DataFill)
+  })
+  
+  observe({
+    input$interpolaterefrash 
+    intervalues$InterpolationDtemp <- intervalues$InterpolationD
+  })
+  
+  #Save Button
+  observe({
+    
+    if(input$interpolatesave!=0 & (is.null(SaveButton$Value)||input$interpolatesave!=SaveButton$Value)){
+      SaveButton$Value <- input$interpolatesave
+    
+    
+    DataSlidersFor <- c("CountryName",input$product)
+    DSli <- colnames(intervalues$InterpolationD)[colnames(intervalues$InterpolationD)%in%DataSlidersFor]
+    
+    textas1 <- ""
+    for(i in DSli){
+      txt <- paste(" intervalues$InterpolationD['",i,"'] == input$",i, sep="")
+      if(textas1==""){
+        textas1 <- paste(textas1,txt,sep=" intervalues$InterpolationD[")
+      }else{
+        textas1 <- paste(textas1,txt,sep=" & ") 
+      }
+    }
+    
+    textas2 <- ""
+    for(i in DSli){
+      txt <- paste(" intervalues$InterpolationDtemp['",i,"'] == input$",i, sep="")
+      if(textas2==""){
+        textas2 <- paste(textas2,txt,sep=" intervalues$InterpolationDtemp[")
+      }else{
+        textas2 <- paste(textas2,txt,sep=" & ") 
+      }
+    }
+   
+    textas <- paste(textas1,",] = ",textas2,",]",sep="") 
+    print(eval(parse(text=paste(textas1,",]"))))
+    print(eval(parse(text=paste(textas2,",]"))))
+    eval(parse(text=textas))
+    
+    }
+  })
+  
+  #Refresh Button
+  observe({
+    
+    if(input$interpolaterefrash!=0 & (is.null(SaveButton$ValueR)||input$interpolaterefrash!=SaveButton$ValueR)){
+      SaveButton$ValueR <- input$interpolaterefrash
+      
+      
+      DataSlidersFor <- c("CountryName",input$product)
+      DSli <- colnames(intervalues$InterpolationD)[colnames(intervalues$InterpolationD)%in%DataSlidersFor]
+      
+      textas1 <- ""
+      for(i in DSli){
+        txt <- paste(" intervalues$InterpolationD['",i,"'] == input$",i, sep="")
+        if(textas1==""){
+          textas1 <- paste(textas1,txt,sep=" intervalues$InterpolationD[")
+        }else{
+          textas1 <- paste(textas1,txt,sep=" & ") 
+        }
+      }
+      
+      textas2 <- ""
+      for(i in DSli){
+        txt <- paste(" intervalues$InterpolationDtemp['",i,"'] == input$",i, sep="")
+        if(textas2==""){
+          textas2 <- paste(textas2,txt,sep=" intervalues$InterpolationDtemp[")
+        }else{
+          textas2 <- paste(textas2,txt,sep=" & ") 
+        }
+      }
+      
+      textas <- paste(textas2,",] = ",textas1,",]",sep="") 
+      
+      eval(parse(text=textas))
+      
+    }
+  })
+  
+  #Interpolation
+  InterpolationFill <- reactive({ 
+    DataToFill <- InterpolationRow()
+    if(!is.null(DataToFill)){
+    Numbers <- DataToFill[grep("Y",colnames(DataToFill))] 
+    Nanum <- which(!is.na(Numbers))
+    
+    DataSlidersFor <- c("CountryName",input$product)
+    DSli <- colnames(DataToFill)[colnames(DataToFill)%in%DataSlidersFor]
+    
+    
+    if(diff(Nanum[c(1,length(Nanum ))]) < 2){
+      textas <- ""
+      for(i in DSli){
+        txt <- paste(" intervalues$InterpolationDtemp$",i," == input$",i, sep="")
+        if(textas==""){
+          textas <- paste(textas,txt,sep=" intervalues$InterpolationDtemp[")
+        }else{
+          textas <- paste(textas,txt,sep=" & ") 
+        }
+      }
+      textas <- paste(textas,"] = DataToFill",sep="") 
+      eval(parse(text=textas))
+      return(DataToFill)
+    }else{
+    if(input$InterpolateType=="fill"){
+      n0 <- input$macoefn0
+      n1 <- input$macoefn1
+      k0 <- input$macoefk0
+      k1 <- input$macoefk1
+      method = input$splinemethod
+      DataToFill[grep("Y",colnames(DataToFill))] <- MASplineVector(Numbers, n0,n1,k0,k1, method)
+      textas <- ""
+      for(i in DSli){
+        txt <- paste(" intervalues$InterpolationDtemp['",i,"'] == input$",i, sep="")
+        if(textas==""){
+          textas <- paste(textas,txt,sep=" intervalues$InterpolationDtemp[")
+        }else{
+          textas <- paste(textas,txt,sep=" & ") 
+        }
+      }
+      textas <- paste(textas,",] = DataToFill",sep="") 
+      print(DataToFill)
+      
+      eval(parse(text=textas))
+      
+      return(DataToFill)
+    }else{
+      
+      
+      
+      
+      
+    
+    }}
+    }})
+  
+  
+  # Interpolation graphics
+  output$InterpolationPlot <- renderPlot({
+    if(is.null(InterpolationFill())){
+    df <- data.frame()
+    print(ggplot(df)+ xlim(-5, 5) + ylim(-5, 5)+theme_bw()+xlab('')+ylab("")+
+            annotate("text", label = "No data to plot", x = 0, y = 0, size = 8, colour = "Black")+
+            theme(axis.ticks = element_blank(), axis.text = element_blank()))
+    }else{
+      DataToFill <- InterpolationFill()
+      Numbers <- DataToFill[grep("Y",colnames(DataToFill))]  
+      if(input$didsast=="log"){
+        Numbers[which(!is.na(Numbers))] <- log(Numbers[which(!is.na(Numbers))])
+      }
+      if(input$didsast=="perc"){
+        Numbers[which(!is.na(Numbers))[2:sum(!is.na(Numbers))]] <- diff(as.numeric(Numbers[which(!is.na(Numbers))]))/
+                                                                        as.numeric(Numbers[which(!is.na(Numbers))])[1:(sum(!is.na(Numbers))-1)]*100
+      }
+      dd <- melt(Numbers)
+      dd$variable <- as.numeric(gsub("Y","", dd$variable))
+      print(ggplot(data <- dd,aes(x=variable,y=value))+geom_line(colour="#FAA537")+theme_bw()+xlab('Year')+ylab(""))
+     }
+  })
   
 })
 
