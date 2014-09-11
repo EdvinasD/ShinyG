@@ -16,7 +16,7 @@ library(gridExtra)
 library(RColorBrewer)
 #library(xlsx)
 library(gtools)
-library(XLConnect)
+#library(XLConnect)
 load("EMI base.Rdata")
 source("functions.R")
 
